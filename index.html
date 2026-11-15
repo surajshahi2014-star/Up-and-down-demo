@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Up/Down Demo</title>
+<script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
+<style>
+  body{background:#0b0e11;color:#eaecef;font-family:Arial,sans-serif;margin:0;padding:20px;text-align:center}
+  .card{max-width:420px;margin:30px auto;background:#1e2329;border-radius:14px;padding:20px}
+  .price{font-size:34px;font-weight:bold;margin:10px 0}
+  .btn{width:45%;padding:14px;margin:8px 2%;border:none;border-radius:10px;font-size:18px;font-weight:bold;cursor:pointer}
+  .up{background:#2ebd85;color:#fff}.down{background:#f6465d;color:#fff}
+  .wallet{background:#5b8cff;color:#fff;padding:10px 16px;border-radius:10px;border:none;cursor:pointer}
+  .small{font-size:12px;color:#848e9c;margin-top:14px}
+  button:disabled{opacity:.5}
+</style>
+</head>
+<body>
+<div class="card">
+  <h2>📈📉 BTC Up/Down — DEMO</h2>
+  <button class="wallet" id="connectBtn">🔗 Connect Wallet</button>
+  <p id="walletAddr" class="small">Not connected</p>
+  <div class="price" id="price">Loading...</div>
+  <p>Balance (fake): <b id="balance">$1000</b></p>
+  <p id="status">Pick UP or DOWN (60s)</p>
+  <button class="btn up" id="upBtn" onclick="trade('UP')">UP 📈</button>
+  <button class="btn down" id="downBtn" onclick="trade('DOWN')">DOWN 📉</button>
+  <p class="small">⚠️ Demo only — no real money, no on-chain transactions.<br>Never share your seed phrase or private key.</p>
+</div>
+<script>
+let price=null, balance=1000, active=null;
+const ws=new WebSocket("wss://stream.binance.com:9443/ws/btcusdt@trade");
+ws.onmessage=(e)=>{price=parseFloat(JSON.parse(e.data).p);document.getElementById("price").textContent="$"+price.toFixed(2);};
+document.getElementById("connectBtn").onclick=async()=>{
+  if(window.ethereum){const acc=await window.ethereum.request({method:"eth_requestAccounts"});
+    document.getElementById("walletAddr").textContent="✅ "+acc[0].slice(0,6)+"..."+acc[0].slice(-4);
+  }else{alert("Install MetaMask or open this link in Trust Wallet browser");}};
+function trade(dir){
+  if(active||!price)return;
+  active={dir,amount:10,entry:price,expires:Date.now()+60000};
+  document.getElementById("status").textContent="⏳ "+dir+" $10 @ $"+price.toFixed(2);
+  document.getElementById("upBtn").disabled=document.getElementById("downBtn").disabled=true;}
+setInterval(()=>{
+  if(!active)return;
+  const left=Math.max(0,Math.ceil((active.expires-Date.now())/1000));
+  if(left<=0&&price){
+    const win=active.dir==="UP"?price>active.entry:price<active.entry;
+    balance+=win?active.amount*0.85:-active.amount;
+    document.getElementById("balance").textContent="$"+balance.toFixed(2);
+    document.getElementById("status").textContent=win?"✅ WON +$8.50":"❌ LOST -$10";
+    active=null;
+    document.getElementById("upBtn").disabled=document.getElementById("downBtn").disabled=false;
+  }else{document.getElementById("status").textContent="⏳ "+active.dir+" — "+left+"s left";}
+},500);
+</script>
+</body>
+</html>
